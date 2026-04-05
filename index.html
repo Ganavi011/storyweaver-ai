@@ -1,0 +1,1252 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>StoryWeaver · AI story endings with 6 emotions & voice</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: radial-gradient(circle at 10% 20%, #1a1c3b, #0a0a1a);
+      color: #edeef5;
+      line-height: 1.5;
+      scroll-behavior: smooth;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at 70% 80%, #2a1b3d, transparent 60%),
+                  radial-gradient(circle at 20% 10%, #1b3d3a, transparent 50%);
+      background-blend-mode: overlay;
+      z-index: -2;
+      animation: subtleShift 20s ease infinite alternate;
+      pointer-events: none;
+    }
+
+    @keyframes subtleShift {
+      0% { opacity: 0.6; transform: scale(1); }
+      100% { opacity: 1; transform: scale(1.05); }
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Voice selector styling */
+    .voice-selector {
+      position: fixed;
+      top: 15px;
+      right: 15px;
+      z-index: 1000;
+      background: rgba(0, 0, 0, 0.75);
+      padding: 8px 18px;
+      border-radius: 40px;
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(108, 99, 255, 0.4);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 13px;
+    }
+    .voice-selector label {
+      color: #cdd6f4;
+      font-weight: 500;
+    }
+    .voice-selector select {
+      background: #2d2f4e;
+      color: white;
+      border: 1px solid #6c63ff;
+      padding: 6px 12px;
+      border-radius: 30px;
+      cursor: pointer;
+      font-size: 12px;
+      outline: none;
+    }
+    .voice-selector select:hover {
+      background: #6c63ff;
+    }
+    .voice-test-btn {
+      background: #6c63ff;
+      border: none;
+      padding: 5px 12px;
+      border-radius: 30px;
+      cursor: pointer;
+      font-size: 11px;
+      color: white;
+      transition: 0.2s;
+    }
+    .voice-test-btn:hover {
+      transform: scale(1.05);
+      background: #9b59b6;
+    }
+
+    .glass-card {
+      background: rgba(20, 22, 45, 0.65);
+      backdrop-filter: blur(14px);
+      border-radius: 2rem;
+      border: 1px solid rgba(108, 99, 255, 0.25);
+      box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.4);
+      transition: all 0.2s ease;
+    }
+
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 1.5rem 1.8rem;
+    }
+
+    .brand {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .brand h1 {
+      font-size: 3rem;
+      font-weight: 800;
+      background: linear-gradient(130deg, #FFD89B, #C7B9FF, #6CFFD6);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      letter-spacing: -0.02em;
+    }
+    .brand p {
+      color: #a9b2e0;
+      margin-top: 0.4rem;
+      font-weight: 500;
+    }
+
+    .emotion-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+      gap: 0.8rem;
+      margin: 1rem 0;
+    }
+    .emotion-chip {
+      background: rgba(50, 55, 90, 0.8);
+      padding: 0.6rem 1rem;
+      border-radius: 3rem;
+      font-weight: 500;
+      transition: 0.2s;
+      cursor: pointer;
+      border: 1px solid transparent;
+      text-align: center;
+    }
+    .emotion-chip.selected {
+      background: #6c63ff;
+      border-color: white;
+      box-shadow: 0 0 10px #6c63ff;
+    }
+
+    .tab-nav {
+      display: flex;
+      gap: 0.8rem;
+      background: rgba(0, 0, 0, 0.35);
+      backdrop-filter: blur(8px);
+      padding: 0.6rem;
+      border-radius: 3rem;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .tab-btn {
+      background: transparent;
+      border: none;
+      padding: 0.75rem 1.6rem;
+      border-radius: 2rem;
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: #cdd6f4;
+      cursor: pointer;
+      transition: 0.2s;
+      font-family: inherit;
+    }
+    .tab-btn.active {
+      background: #6c63ff;
+      color: white;
+      box-shadow: 0 6px 14px rgba(108, 99, 255, 0.3);
+    }
+
+    .panel {
+      display: none;
+      animation: fadeSlideUp 0.35s ease-out;
+    }
+    .panel.active-panel {
+      display: block;
+    }
+
+    @keyframes fadeSlideUp {
+      from { opacity: 0; transform: translateY(12px);}
+      to { opacity: 1; transform: translateY(0);}
+    }
+
+    .story-textarea {
+      width: 100%;
+      background: rgba(10, 12, 28, 0.8);
+      border: 1px solid rgba(108, 99, 255, 0.4);
+      border-radius: 1.5rem;
+      padding: 1.2rem;
+      font-size: 1rem;
+      color: white;
+      font-family: monospace;
+      resize: vertical;
+      line-height: 1.5;
+      min-height: 200px;
+    }
+
+    .voice-controls {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+    .voice-mic {
+      background: #2a2a4a;
+      border: none;
+      width: 48px;
+      height: 48px;
+      border-radius: 60px;
+      font-size: 1.5rem;
+      cursor: pointer;
+      transition: 0.2s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #cddcff;
+    }
+    .voice-mic:hover { background: #6c63ff; transform: scale(1.02); }
+    .voice-mic.recording {
+      background: #e74c3c;
+      animation: pulse 0.8s infinite;
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7); }
+      70% { box-shadow: 0 0 0 15px rgba(231, 76, 60, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); }
+    }
+    .voice-status {
+      font-size: 0.75rem;
+      padding: 4px 10px;
+      border-radius: 20px;
+      background: rgba(0,0,0,0.5);
+    }
+
+    .end-story-btn {
+      background: linear-gradient(95deg, #ff6a5c, #ff8a5c);
+      border: none;
+      width: 100%;
+      padding: 1rem;
+      border-radius: 3rem;
+      font-weight: 800;
+      font-size: 1.1rem;
+      color: white;
+      margin: 1rem 0 1.2rem 0;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .end-story-btn:hover { transform: translateY(-2px); }
+
+    .weave-btn {
+      background: #6c63ff;
+      border: none;
+      padding: 0.7rem 1.8rem;
+      border-radius: 2rem;
+      font-weight: bold;
+      font-size: 0.9rem;
+      margin-top: 0.5rem;
+      cursor: pointer;
+    }
+
+    .endings-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 1.3rem;
+      margin: 1.5rem 0;
+    }
+    .ending-card, .story-card {
+      background: rgba(15, 18, 35, 0.7);
+      backdrop-filter: blur(8px);
+      border-radius: 1.5rem;
+      padding: 1.2rem;
+      border: 1px solid rgba(108, 99, 255, 0.2);
+      transition: all 0.3s ease;
+    }
+    .ending-card:hover, .story-card:hover {
+      transform: translateY(-5px);
+      border-color: rgba(108, 99, 255, 0.6);
+    }
+
+    .ending-text-preview {
+      font-size: 0.85rem;
+      opacity: 0.9;
+      margin: 0.5rem 0 1rem;
+      max-height: 200px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+
+    .card-actions {
+      display: flex;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+    }
+    .listen-sm, .view-full-btn {
+      background: #2d2f4e;
+      border: none;
+      padding: 0.4rem 1rem;
+      border-radius: 2rem;
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+    .select-ending {
+      background: #6c63ff;
+      border: none;
+      padding: 0.4rem 1rem;
+      border-radius: 2rem;
+      font-weight: 500;
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+    .delete-story {
+      background: #e74c3c;
+      border: none;
+      padding: 0.4rem 1rem;
+      border-radius: 2rem;
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+
+    .save-area {
+      margin-top: 1.8rem;
+      display: none;
+      background: rgba(0,0,0,0.35);
+      border-radius: 1.5rem;
+      padding: 1.2rem;
+    }
+    .title-input {
+      width: 100%;
+      background: #0e0c24;
+      border: 1px solid #4e4a7a;
+      border-radius: 3rem;
+      padding: 0.8rem 1.2rem;
+      color: white;
+      margin: 0.8rem 0;
+    }
+
+    .writers-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 1.5rem;
+      margin-top: 1.5rem;
+    }
+    .writer-card {
+      background: rgba(15, 18, 35, 0.8);
+      backdrop-filter: blur(8px);
+      border-radius: 1.5rem;
+      padding: 1.5rem;
+      border: 1px solid rgba(108, 99, 255, 0.3);
+      transition: all 0.3s ease;
+    }
+    .writer-card:hover {
+      transform: translateY(-5px);
+      border-color: #6c63ff;
+    }
+    .writer-avatar {
+      width: 60px;
+      height: 60px;
+      background: linear-gradient(135deg, #6c63ff, #e74c3c);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8rem;
+      margin-bottom: 1rem;
+    }
+    .writer-name {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 0.3rem;
+    }
+    .writer-genres {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin: 0.8rem 0;
+    }
+    .genre-tag {
+      background: rgba(108, 99, 255, 0.3);
+      padding: 0.2rem 0.6rem;
+      border-radius: 1rem;
+      font-size: 0.7rem;
+    }
+    .writer-stories {
+      font-size: 0.75rem;
+      opacity: 0.8;
+      margin: 0.5rem 0;
+    }
+    .approach-writer-btn {
+      background: linear-gradient(95deg, #6c63ff, #9b59b6);
+      border: none;
+      width: 100%;
+      padding: 0.6rem;
+      border-radius: 2rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.2s;
+      margin-top: 0.8rem;
+    }
+    .approach-writer-btn:hover {
+      transform: scale(1.02);
+      filter: brightness(1.1);
+    }
+
+    .search-section {
+      background: rgba(20, 22, 45, 0.6);
+      border-radius: 1.5rem;
+      padding: 1.2rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.95);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-content {
+      background: #1a1c3b;
+      border-radius: 2rem;
+      padding: 2rem;
+      max-width: 900px;
+      width: 90%;
+      max-height: 90vh;
+      overflow-y: auto;
+      border: 1px solid #6c63ff;
+      position: relative;
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid #6c63ff;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .modal-header h3 {
+      color: #6c63ff;
+      margin: 0;
+    }
+    .modal-buttons {
+      display: flex;
+      gap: 10px;
+    }
+    .modal-speaker-btn, .modal-edit-btn, .modal-save-btn {
+      background: #2d2f4e;
+      border: none;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      font-size: 1.2rem;
+      cursor: pointer;
+      transition: 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-speaker-btn:hover, .modal-edit-btn:hover, .modal-save-btn:hover {
+      background: #6c63ff;
+      transform: scale(1.05);
+    }
+    .modal-save-btn {
+      background: #27ae60;
+    }
+    .edit-textarea {
+      width: 100%;
+      background: #0e0c24;
+      border: 1px solid #4e4a7a;
+      border-radius: 1rem;
+      padding: 1rem;
+      color: white;
+      font-family: monospace;
+      font-size: 0.9rem;
+      margin: 0.5rem 0;
+      resize: vertical;
+    }
+    #editOriginalStory { min-height: 250px; }
+    #editEnding { min-height: 200px; }
+    
+    #modalViewMode {
+      max-height: 60vh;
+      overflow-y: auto;
+    }
+    #modalViewMode p {
+      background: rgba(0,0,0,0.3);
+      padding: 1rem;
+      border-radius: 1rem;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      line-height: 1.6;
+    }
+    
+    .close-modal {
+      background: #e74c3c;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 2rem;
+      cursor: pointer;
+      margin-top: 1rem;
+      width: 100%;
+    }
+
+    .loading-spinner {
+      text-align: center;
+      padding: 2rem;
+    }
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid #6c63ff;
+      border-top-color: transparent;
+      border-radius: 50%;
+      margin: 0 auto 1rem;
+      animation: spin 1s linear infinite;
+    }
+
+    .flex-between { display: flex; justify-content: space-between; align-items: center; }
+    .badge { background: #6c63ff40; border-radius: 20px; padding: 0.2rem 0.6rem; font-size: 0.7rem; }
+
+    footer {
+      text-align: center;
+      margin-top: 2.8rem;
+      font-size: 0.75rem;
+      opacity: 0.6;
+    }
+
+    @media (max-width: 680px) {
+      .container { padding: 1rem; }
+      .tab-btn { padding: 0.5rem 1rem; font-size: 0.8rem;}
+      .emotion-grid { grid-template-columns: repeat(2, 1fr); }
+      .writers-grid { grid-template-columns: 1fr; }
+      .modal-content { padding: 1rem; }
+      .voice-selector { top: 5px; right: 5px; padding: 5px 10px; font-size: 10px; }
+      .voice-selector select { padding: 3px 8px; font-size: 10px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Voice Selector Dropdown - Lets user choose their preferred female voice -->
+<div class="voice-selector">
+  <label>🎤 Voice:</label>
+  <select id="voiceSelect">
+    <option value="">Loading voices...</option>
+  </select>
+  <button class="voice-test-btn" onclick="testSelectedVoice()">Test</button>
+</div>
+
+<div class="container">
+  <div class="brand">
+    <h1>📖 StoryWeaver AI</h1>
+    <p>🎙️ Create Stories · Find Writers for Your Next Film</p>
+  </div>
+
+  <div class="tab-nav">
+    <button class="tab-btn active" data-panel="writer">✍️ Writer Studio</button>
+    <button class="tab-btn" data-panel="library">📚 My Library</button>
+    <button class="tab-btn" data-panel="seeker">🎬 Find Writers</button>
+  </div>
+
+  <!-- WRITER PANEL -->
+  <div id="writerPanel" class="panel active-panel">
+    <div class="glass-card" style="padding: 1.5rem;">
+      <div class="story-zone">
+        <label style="font-weight: 600;">✨ Your incomplete story</label>
+        <textarea id="unfinishedStory" rows="5" class="story-textarea" placeholder="Write or speak your story..."></textarea>
+        <div class="voice-controls">
+          <button id="voiceRecordBtn" class="voice-mic">🎤</button>
+          <span id="voiceStatus" class="voice-status">⚡ Click mic to record</span>
+        </div>
+      </div>
+
+      <button id="endStoryTriggerBtn" class="end-story-btn">📖 END MY STORY TELLING</button>
+
+      <div id="emotionSection" class="emotion-panel" style="display: none;">
+        <div style="font-weight: 600;">🎭 Select genres for your story</div>
+        <div class="emotion-grid" id="emotionGrid">
+          <div class="emotion-chip" data-emotion="happy">😊 Happy</div>
+          <div class="emotion-chip" data-emotion="sad">😢 Sad</div>
+          <div class="emotion-chip" data-emotion="thriller">🔪 Thriller</div>
+          <div class="emotion-chip" data-emotion="romantic">💕 Romantic</div>
+          <div class="emotion-chip" data-emotion="mystery">❓ Mystery</div>
+          <div class="emotion-chip" data-emotion="adventure">🗺️ Adventure</div>
+        </div>
+        <button id="weaveEndingsBtn" class="weave-btn">✨ WEAVE ENDINGS WITH AI ✨</button>
+      </div>
+
+      <div id="endingsWrapper" style="margin-top: 1.8rem;"></div>
+
+      <div id="saveStoryArea" class="save-area">
+        <div style="font-weight: 600;">💾 Save your story</div>
+        <div id="selectedPreviewMsg" style="font-size: 0.8rem; margin: 8px 0;"></div>
+        <input type="text" id="storyTitleInput" class="title-input" placeholder="Story title">
+        <input type="text" id="writerNameInput" class="title-input" placeholder="Your pen name" value="Anonymous Writer">
+        <button id="confirmSaveBtn" style="background:#6c63ff; border:none; padding: 10px 20px; border-radius: 2rem;">📀 Publish to Library</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LIBRARY PANEL -->
+  <div id="libraryPanel" class="panel">
+    <div class="glass-card" style="padding: 1.5rem;">
+      <h3>📚 My Published Stories</h3>
+      <div id="libraryContainer">✨ No stories yet. Create and publish your first story!</div>
+    </div>
+  </div>
+
+  <!-- STORY SEEKER PANEL -->
+  <div id="seekerPanel" class="panel">
+    <div class="glass-card" style="padding: 1.5rem;">
+      <h3>🎬 Find Writers for Your Film / Drama / Short Movie</h3>
+      <p style="font-size: 0.85rem; opacity: 0.8; margin-bottom: 1rem;">Browse writers based on their published stories and genres.</p>
+      
+      <div class="search-section">
+        <div style="margin-bottom: 1rem;">
+          <label style="font-size: 0.8rem;">Filter by genre:</label>
+          <div class="emotion-grid" id="seekerFilterGrid">
+            <div class="emotion-chip" data-filter="happy">😊 Happy</div>
+            <div class="emotion-chip" data-filter="sad">😢 Sad</div>
+            <div class="emotion-chip" data-filter="thriller">🔪 Thriller</div>
+            <div class="emotion-chip" data-filter="romantic">💕 Romantic</div>
+            <div class="emotion-chip" data-filter="mystery">❓ Mystery</div>
+            <div class="emotion-chip" data-filter="adventure">🗺️ Adventure</div>
+            <div class="emotion-chip" data-filter="all">🌟 All Writers</div>
+          </div>
+        </div>
+        
+        <button id="searchWritersBtn" class="weave-btn" style="width: 100%;">🔍 Find Writers</button>
+      </div>
+      
+      <div id="writersResults">
+        <p style="text-align: center; opacity: 0.7;">✨ Select a genre or click "Find Writers" to see all published writers</p>
+      </div>
+    </div>
+  </div>
+
+  <footer>🎙️ Voice-to-text • Groq AI • Female Voice • Find Writers for Your Next Project</footer>
+</div>
+
+<!-- Modal for approaching writer -->
+<div id="approachModal" class="modal">
+  <div class="modal-content" style="max-width: 500px; text-align: center;">
+    <h3>📧 Contact Writer</h3>
+    <p id="approachMessage" style="margin: 1rem 0;"></p>
+    <button onclick="closeApproachModal()" style="background: #6c63ff; border: none; padding: 0.5rem 1rem; border-radius: 2rem; cursor: pointer;">Close</button>
+  </div>
+</div>
+
+<!-- Modal for viewing/editing full story -->
+<div id="storyModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 id="modalTitle">📖 Full Story</h3>
+      <div class="modal-buttons">
+        <button id="modalSpeakerBtn" class="modal-speaker-btn" onclick="speakModalContent()">🔊</button>
+        <button id="modalEditBtn" class="modal-edit-btn" onclick="enableEditMode()">✏️</button>
+      </div>
+    </div>
+    <div id="modalViewMode">
+      <p><strong>📝 Original Story:</strong></p>
+      <p id="modalOriginalStory"></p>
+      <p><strong>✨ Ending:</strong></p>
+      <p id="modalEnding"></p>
+    </div>
+    <div id="modalEditMode" style="display: none;">
+      <p><strong>📝 Original Story:</strong></p>
+      <textarea id="editOriginalStory" class="edit-textarea" rows="10" placeholder="Edit your story here..."></textarea>
+      <p><strong>✨ Ending:</strong></p>
+      <textarea id="editEnding" class="edit-textarea" rows="8" placeholder="Edit your ending here..."></textarea>
+      <div style="display: flex; gap: 10px; margin-top: 1rem;">
+        <button class="modal-save-btn" onclick="saveEditedStory()">💾 Save Changes</button>
+        <button class="modal-speaker-btn" style="background: #e74c3c;" onclick="cancelEditMode()">❌ Cancel</button>
+      </div>
+    </div>
+    <button class="close-modal" onclick="closeModal()">Close</button>
+  </div>
+</div>
+
+<script>
+  const API_URL = 'http://localhost:3000/api/generate';
+  
+  let savedStories = JSON.parse(localStorage.getItem('storyweaver_saved')) || [];
+  let publishedStories = JSON.parse(localStorage.getItem('storyweaver_published')) || [];
+  let selectedEmotionsArray = [];
+  let currentGeneratedEndings = [];
+  let currentlySelectedEndingText = null;
+  
+  let currentModalStoryId = null;
+  let currentModalOriginalStory = '';
+  let currentModalEnding = '';
+  
+  let selectedVoice = null;
+
+  // ========== VOICE SELECTOR FUNCTIONALITY ==========
+  function loadVoicesIntoDropdown() {
+    const voiceSelect = document.getElementById('voiceSelect');
+    if (!voiceSelect) return;
+    
+    const voices = window.speechSynthesis.getVoices();
+    
+    // Filter for English female voices (prioritize natural sounding ones)
+    const femaleVoices = voices.filter(v => 
+      v.lang.startsWith('en') && 
+      (v.name.toLowerCase().includes('female') ||
+       v.name.toLowerCase().includes('zira') ||
+       v.name.toLowerCase().includes('samantha') ||
+       v.name.toLowerCase().includes('helena') ||
+       v.name.toLowerCase().includes('joanna') ||
+       v.name.toLowerCase().includes('salli') ||
+       v.name.toLowerCase().includes('kendra') ||
+       v.name.toLowerCase().includes('allison') ||
+       v.name.toLowerCase().includes('victoria') ||
+       v.name.toLowerCase().includes('google') && v.name.includes('Female'))
+    );
+    
+    // If no female voices found, show all English voices
+    const displayVoices = femaleVoices.length > 0 ? femaleVoices : voices.filter(v => v.lang.startsWith('en'));
+    
+    if (displayVoices.length === 0) {
+      voiceSelect.innerHTML = '<option value="">No voices available</option>';
+      return;
+    }
+    
+    voiceSelect.innerHTML = '<option value="">🎤 Choose a voice...</option>';
+    
+    displayVoices.forEach(voice => {
+      const option = document.createElement('option');
+      option.value = voice.name;
+      option.textContent = `${voice.name} (${voice.lang})`;
+      voiceSelect.appendChild(option);
+    });
+    
+    // Restore previously selected voice
+    const savedVoice = localStorage.getItem('selectedVoiceName');
+    if (savedVoice && Array.from(voiceSelect.options).some(opt => opt.value === savedVoice)) {
+      voiceSelect.value = savedVoice;
+      selectedVoice = voices.find(v => v.name === savedVoice);
+    } else if (displayVoices.length > 0) {
+      // Auto-select best female voice
+      const preferredVoices = ['Samantha', 'Google UK English Female', 'Microsoft Zira', 'Joanna'];
+      for (const pref of preferredVoices) {
+        const found = displayVoices.find(v => v.name.includes(pref));
+        if (found) {
+          voiceSelect.value = found.name;
+          selectedVoice = found;
+          localStorage.setItem('selectedVoiceName', found.name);
+          break;
+        }
+      }
+    }
+    
+    console.log('✅ Voices loaded:', displayVoices.length, 'voices available');
+  }
+  
+  // Test the selected voice
+  function testSelectedVoice() {
+    const voiceSelect = document.getElementById('voiceSelect');
+    if (!voiceSelect.value) {
+      alert('Please select a voice first');
+      return;
+    }
+    speakText("Hello! This is your selected voice. How does it sound?");
+  }
+  
+  // Save voice preference when changed
+  document.getElementById('voiceSelect')?.addEventListener('change', (e) => {
+    const voices = window.speechSynthesis.getVoices();
+    selectedVoice = voices.find(v => v.name === e.target.value);
+    localStorage.setItem('selectedVoiceName', e.target.value);
+    console.log('Voice changed to:', selectedVoice?.name);
+  });
+
+  // ========== ENHANCED SPEECH FUNCTION WITH VOICE SELECTOR ==========
+  function speakText(text) {
+    if (!text || text.trim() === '') return;
+    
+    // Cancel any ongoing speech
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+    
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.85;  // Natural speaking rate
+    utterance.pitch = 1.0;
+    utterance.volume = 1;
+    utterance.lang = 'en-US';
+    
+    // Use selected voice from dropdown if available
+    if (selectedVoice) {
+      utterance.voice = selectedVoice;
+      
+      // Fine-tune settings based on voice type for best quality
+      if (selectedVoice.name.includes('Zira')) {
+        utterance.pitch = 1.0;
+        utterance.rate = 0.88;
+      } else if (selectedVoice.name.includes('Samantha')) {
+        utterance.pitch = 1.02;
+        utterance.rate = 0.85;
+      } else if (selectedVoice.name.includes('Google')) {
+        utterance.pitch = 1.05;
+        utterance.rate = 0.9;
+      } else if (selectedVoice.name.includes('Joanna')) {
+        utterance.pitch = 1.0;
+        utterance.rate = 0.87;
+      }
+      
+      console.log('🎤 Speaking with:', selectedVoice.name);
+      window.speechSynthesis.speak(utterance);
+      return;
+    }
+    
+    // Fallback: try to find a good female voice automatically
+    const voices = window.speechSynthesis.getVoices();
+    const fallbackVoices = [
+      voices.find(v => v.name === 'Samantha'),
+      voices.find(v => v.name === 'Google UK English Female'),
+      voices.find(v => v.name === 'Microsoft Zira'),
+      voices.find(v => v.name.includes('Female'))
+    ].filter(v => v);
+    
+    if (fallbackVoices.length > 0) {
+      utterance.voice = fallbackVoices[0];
+      console.log('🎤 Using fallback voice:', utterance.voice.name);
+    }
+    
+    window.speechSynthesis.speak(utterance);
+  }
+
+  function syncStories() {
+    localStorage.setItem('storyweaver_saved', JSON.stringify(savedStories));
+    localStorage.setItem('storyweaver_published', JSON.stringify(publishedStories));
+    renderLibrary();
+    if (document.querySelector('.tab-btn.active').getAttribute('data-panel') === 'seeker') {
+      displayWriters();
+    }
+  }
+
+  // Tab switching
+  const panels = { writer: 'writerPanel', library: 'libraryPanel', seeker: 'seekerPanel' };
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const target = btn.getAttribute('data-panel');
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active-panel'));
+      document.getElementById(panels[target]).classList.add('active-panel');
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      if (target === 'library') renderLibrary();
+      if (target === 'seeker') displayWriters();
+    });
+  });
+
+  // ========== VOICE INPUT ==========
+  const storyTextarea = document.getElementById('unfinishedStory');
+  const voiceBtn = document.getElementById('voiceRecordBtn');
+  const voiceStatus = document.getElementById('voiceStatus');
+  let recognition = null;
+  let isRecording = false;
+  let accumulatedText = '';
+  let restartTimeout = null;
+
+  if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+    const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SpeechRecognitionAPI();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+    
+    function startRecording() {
+      accumulatedText = storyTextarea.value;
+      recognition.start();
+      isRecording = true;
+      voiceBtn.classList.add('recording');
+      voiceBtn.textContent = '⏹️';
+      voiceStatus.textContent = '🔴 Recording... Click mic to stop.';
+    }
+    
+    function stopRecording() {
+      if (restartTimeout) clearTimeout(restartTimeout);
+      recognition.stop();
+      isRecording = false;
+      voiceBtn.classList.remove('recording');
+      voiceBtn.textContent = '🎤';
+      voiceStatus.textContent = '⚡ Click mic to record';
+    }
+    
+    voiceBtn.addEventListener('click', async () => {
+      if (isRecording) { stopRecording(); return; }
+      try {
+        await navigator.mediaDevices.getUserMedia({ audio: true });
+        startRecording();
+      } catch (err) { alert('Microphone access denied.'); }
+    });
+    
+    recognition.onresult = (event) => {
+      let newText = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        newText += event.results[i][0].transcript;
+      }
+      storyTextarea.value = accumulatedText.trim() === '' ? newText : accumulatedText + ' ' + newText;
+      storyTextarea.scrollTop = storyTextarea.scrollHeight;
+    };
+    
+    recognition.onerror = (event) => {
+      if (event.error === 'audio-capture') alert('No microphone found.');
+      else if (event.error === 'not-allowed') alert('Microphone access blocked.');
+      stopRecording();
+    };
+    
+    recognition.onend = () => {
+      if (isRecording) {
+        voiceStatus.textContent = '🔄 Continuing...';
+        restartTimeout = setTimeout(() => { if (isRecording) recognition.start(); }, 200);
+      }
+    };
+  } else {
+    voiceBtn.disabled = true;
+    voiceStatus.textContent = '❌ Voice not supported';
+  }
+
+  // ========== MODAL FUNCTIONS ==========
+  window.speakModalContent = function() {
+    speakText(`Original Story: ${currentModalOriginalStory}. Ending: ${currentModalEnding}`);
+  }
+
+  window.enableEditMode = function() {
+    document.getElementById('editOriginalStory').value = currentModalOriginalStory;
+    document.getElementById('editEnding').value = currentModalEnding;
+    document.getElementById('modalViewMode').style.display = 'none';
+    document.getElementById('modalEditMode').style.display = 'block';
+    document.getElementById('modalEditBtn').style.display = 'none';
+  }
+
+  window.cancelEditMode = function() {
+    document.getElementById('modalViewMode').style.display = 'block';
+    document.getElementById('modalEditMode').style.display = 'none';
+    document.getElementById('modalEditBtn').style.display = 'flex';
+  }
+
+  window.saveEditedStory = function() {
+    const newOriginalStory = document.getElementById('editOriginalStory').value.trim();
+    const newEnding = document.getElementById('editEnding').value.trim();
+    if (!newOriginalStory || !newEnding) {
+      alert("Both story and ending cannot be empty!");
+      return;
+    }
+    const storyIndex = savedStories.findIndex(s => s.id === currentModalStoryId);
+    if (storyIndex !== -1) {
+      savedStories[storyIndex].originalStory = newOriginalStory;
+      savedStories[storyIndex].ending = newEnding;
+      savedStories[storyIndex].summary = newEnding.substring(0, 130) + "...";
+      const pubIndex = publishedStories.findIndex(s => s.id === currentModalStoryId);
+      if (pubIndex !== -1) {
+        publishedStories[pubIndex].originalStory = newOriginalStory;
+        publishedStories[pubIndex].ending = newEnding;
+        publishedStories[pubIndex].summary = newEnding.substring(0, 130) + "...";
+      }
+      syncStories();
+      currentModalOriginalStory = newOriginalStory;
+      currentModalEnding = newEnding;
+      document.getElementById('modalOriginalStory').innerText = newOriginalStory;
+      document.getElementById('modalEnding').innerText = newEnding;
+    }
+    document.getElementById('modalViewMode').style.display = 'block';
+    document.getElementById('modalEditMode').style.display = 'none';
+    document.getElementById('modalEditBtn').style.display = 'flex';
+    alert("✅ Story updated successfully!");
+  }
+
+  window.openModal = function(storyId) {
+    const story = savedStories.find(s => s.id === storyId);
+    if (story) {
+      currentModalStoryId = story.id;
+      currentModalOriginalStory = story.originalStory;
+      currentModalEnding = story.ending;
+      document.getElementById('modalTitle').innerHTML = `📖 ${escapeHtml(story.title)}`;
+      document.getElementById('modalOriginalStory').innerText = story.originalStory;
+      document.getElementById('modalEnding').innerText = story.ending;
+      document.getElementById('modalViewMode').style.display = 'block';
+      document.getElementById('modalEditMode').style.display = 'none';
+      document.getElementById('modalEditBtn').style.display = 'flex';
+      document.getElementById('storyModal').style.display = 'flex';
+    }
+  }
+  
+  function closeModal() {
+    document.getElementById('storyModal').style.display = 'none';
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+  }
+  
+  window.onclick = function(event) {
+    const modal = document.getElementById('storyModal');
+    if (event.target === modal) closeModal();
+  }
+
+  // Approaching writer
+  window.approachWriter = function(writerName) {
+    document.getElementById('approachMessage').innerText = `📧 Request sent to ${writerName}!\n\nThey will contact you soon.`;
+    document.getElementById('approachModal').style.display = 'flex';
+  }
+  
+  function closeApproachModal() {
+    document.getElementById('approachModal').style.display = 'none';
+  }
+
+  // ========== DISPLAY WRITERS ==========
+  function displayWriters() {
+    const selectedFilter = document.querySelector('#seekerFilterGrid .emotion-chip.selected')?.getAttribute('data-filter') || 'all';
+    const writersMap = new Map();
+    
+    publishedStories.forEach(story => {
+      const authorName = story.author || story.authorName || 'Anonymous Writer';
+      if (!writersMap.has(authorName)) {
+        writersMap.set(authorName, { name: authorName, genres: new Set(), storyCount: 0, sampleStory: story.title });
+      }
+      const writer = writersMap.get(authorName);
+      story.emotions?.forEach(emotion => writer.genres.add(emotion));
+      writer.storyCount++;
+    });
+    
+    let writers = Array.from(writersMap.values()).map(w => ({ ...w, genres: Array.from(w.genres) }));
+    if (selectedFilter !== 'all') writers = writers.filter(w => w.genres.includes(selectedFilter));
+    
+    const resultsDiv = document.getElementById('writersResults');
+    if (writers.length === 0) {
+      resultsDiv.innerHTML = `<p style="text-align: center; padding: 2rem;">📭 No writers found.</p>`;
+      return;
+    }
+    
+    resultsDiv.innerHTML = `<h4>✍️ ${writers.length} Writer${writers.length > 1 ? 's' : ''} Found</h4><div class="writers-grid">${writers.map(w => `
+      <div class="writer-card">
+        <div class="writer-avatar">✍️</div>
+        <div class="writer-name">${escapeHtml(w.name)}</div>
+        <div class="writer-stories">📚 ${w.storyCount} story${w.storyCount > 1 ? 's' : ''}</div>
+        <div class="writer-genres">${w.genres.map(g => `<span class="genre-tag">${getGenreIcon(g)} ${g}</span>`).join('')}</div>
+        <button class="approach-writer-btn" onclick="approachWriter('${escapeHtml(w.name)}')">📧 Approach Writer</button>
+      </div>
+    `).join('')}</div>`;
+  }
+  
+  function getGenreIcon(genre) {
+    const icons = { happy: '😊', sad: '😢', thriller: '🔪', romantic: '💕', mystery: '❓', adventure: '🗺️' };
+    return icons[genre] || '📖';
+  }
+
+  // Filter chips
+  document.querySelectorAll('#seekerFilterGrid .emotion-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('#seekerFilterGrid .emotion-chip').forEach(c => c.classList.remove('selected'));
+      chip.classList.add('selected');
+      displayWriters();
+    });
+  });
+
+  // Emotion chips for writer panel
+  document.querySelectorAll('#emotionGrid .emotion-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const emo = chip.getAttribute('data-emotion');
+      if (chip.classList.contains('selected')) {
+        chip.classList.remove('selected');
+        selectedEmotionsArray = selectedEmotionsArray.filter(e => e !== emo);
+      } else {
+        chip.classList.add('selected');
+        selectedEmotionsArray.push(emo);
+      }
+    });
+  });
+
+  const endStoryBtn = document.getElementById('endStoryTriggerBtn');
+  const emotionSection = document.getElementById('emotionSection');
+  
+  endStoryBtn.addEventListener('click', () => {
+    if (!storyTextarea.value.trim()) { alert("✨ Please tell your story first."); return; }
+    emotionSection.style.display = 'block';
+    emotionSection.scrollIntoView({ behavior: 'smooth' });
+  });
+
+  async function callBackendAPI(story, emotions) {
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ story: story, emotions: emotions })
+    });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return await response.json();
+  }
+
+  async function generateEndingsFromAI(story, selectedEmotions) {
+    if (!story) return [];
+    const result = await callBackendAPI(story, selectedEmotions);
+    return result.endings || [];
+  }
+
+  function attachEndingEventListeners() {
+    document.querySelectorAll('.listen-sm').forEach(btn => {
+      btn.addEventListener('click', () => speakText(btn.getAttribute('data-voice')));
+    });
+    document.querySelectorAll('.select-ending').forEach(btn => {
+      btn.addEventListener('click', () => {
+        currentlySelectedEndingText = btn.getAttribute('data-fulltext');
+        document.getElementById('selectedPreviewMsg').innerHTML = `✨ Selected ending — ready to save.`;
+        document.getElementById('saveStoryArea').style.display = 'block';
+        document.getElementById('saveStoryArea').scrollIntoView({ behavior: 'smooth' });
+      });
+    });
+  }
+
+  const weaveBtn = document.getElementById('weaveEndingsBtn');
+  const endingsWrapper = document.getElementById('endingsWrapper');
+  
+  weaveBtn.addEventListener('click', async () => {
+    const story = storyTextarea.value.trim();
+    if (!story) { alert("📖 Story cannot be empty"); return; }
+    if (selectedEmotionsArray.length === 0) { alert("🎭 Please select at least one genre!"); return; }
+    
+    endingsWrapper.innerHTML = `<div class="loading-spinner"><div class="spinner"></div><p>🤖 AI is writing your story continuation...</p></div>`;
+    try {
+      currentGeneratedEndings = await generateEndingsFromAI(story, selectedEmotionsArray);
+      if (!currentGeneratedEndings.length) throw new Error('No endings generated');
+      
+      let html = `<h4>🌟 ${currentGeneratedEndings.length} Story Continuations</h4><div class="endings-grid">`;
+      for (let i = 0; i < currentGeneratedEndings.length; i++) {
+        const end = currentGeneratedEndings[i];
+        const safeText = end.text.replace(/['"]/g, '&quot;').replace(/\n/g, ' ');
+        html += `<div class="ending-card">
+          <h4>📖 Continuation ${i+1}</h4>
+          <div class="ending-text-preview">${end.text.substring(0, 300)}${end.text.length > 300 ? '...' : ''}</div>
+          <div class="card-actions">
+            <button class="listen-sm" data-voice="${safeText}">🔊 Listen</button>
+            <button class="select-ending" data-fulltext="${safeText}">✅ Select & Save</button>
+          </div>
+        </div>`;
+      }
+      html += `</div>`;
+      endingsWrapper.innerHTML = html;
+      attachEndingEventListeners();
+    } catch (error) {
+      endingsWrapper.innerHTML = `<p style="color: #ff6a5c;">❌ ${error.message}</p>`;
+    }
+  });
+
+  const confirmSave = document.getElementById('confirmSaveBtn');
+  confirmSave.addEventListener('click', () => {
+    const title = document.getElementById('storyTitleInput').value.trim();
+    const writerName = document.getElementById('writerNameInput').value.trim();
+    const originalStory = storyTextarea.value.trim();
+    
+    if (!title) { alert("📝 Give your story a title"); return; }
+    if (!currentlySelectedEndingText) { alert("✅ Select an ending first"); return; }
+    
+    const newStory = {
+      id: Date.now(),
+      title: title,
+      originalStory: originalStory,
+      ending: currentlySelectedEndingText,
+      emotions: [...selectedEmotionsArray],
+      createdAt: new Date().toLocaleString(),
+      author: writerName || "Anonymous Writer",
+      summary: currentlySelectedEndingText.substring(0, 130) + "..."
+    };
+    
+    savedStories.unshift(newStory);
+    publishedStories.unshift({ ...newStory, authorName: newStory.author });
+    syncStories();
+    
+    storyTextarea.value = "";
+    document.getElementById('storyTitleInput').value = "";
+    document.getElementById('writerNameInput').value = "Anonymous Writer";
+    currentlySelectedEndingText = null;
+    selectedEmotionsArray = [];
+    document.querySelectorAll('#emotionGrid .emotion-chip').forEach(c => c.classList.remove('selected'));
+    emotionSection.style.display = 'none';
+    endingsWrapper.innerHTML = "";
+    document.getElementById('saveStoryArea').style.display = 'none';
+    
+    alert(`✅ "${title}" published!`);
+    document.querySelector('.tab-btn[data-panel="library"]').click();
+  });
+
+  function renderLibrary() {
+    const libDiv = document.getElementById('libraryContainer');
+    if (!savedStories.length) {
+      libDiv.innerHTML = `<div style="padding:2rem; text-align:center;">📭 No stories yet.</div>`;
+      return;
+    }
+    libDiv.innerHTML = savedStories.map(s => `
+      <div class="story-card">
+        <div class="flex-between"><h3>📘 ${escapeHtml(s.title)}</h3> <span class="badge">${s.emotions?.join(', ') || 'mixed'}</span></div>
+        <p style="font-size:0.8rem;">📅 ${s.createdAt}</p>
+        <p><strong>Author:</strong> ${escapeHtml(s.author)}</p>
+        <p>${escapeHtml(s.summary)}</p>
+        <div style="margin-top: 8px; display:flex; gap:8px;">
+          <button class="view-full-btn" onclick="openModal(${s.id})">📖 View Full Story</button>
+          <button class="delete-story" data-id="${s.id}">🗑️ Delete</button>
+        </div>
+      </div>
+    `).join('');
+    document.querySelectorAll('.delete-story').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const id = parseInt(btn.getAttribute('data-id'));
+        savedStories = savedStories.filter(st => st.id !== id);
+        publishedStories = publishedStories.filter(st => st.id !== id);
+        syncStories();
+      });
+    });
+  }
+
+  document.getElementById('searchWritersBtn')?.addEventListener('click', displayWriters);
+
+  function escapeHtml(str) { 
+    if(!str) return ''; 
+    return str.replace(/[&<>]/g, m => m === '&' ? '&amp;' : m === '<' ? '&lt;' : '&gt;');
+  }
+
+  // Initialize voices when page loads
+  if (window.speechSynthesis) {
+    // Load voices immediately if available
+    if (window.speechSynthesis.getVoices().length > 0) {
+      loadVoicesIntoDropdown();
+    }
+    
+    // Also listen for voices changed event
+    window.speechSynthesis.onvoiceschanged = () => {
+      loadVoicesIntoDropdown();
+    };
+  }
+
+  renderLibrary();
+  syncStories();
+  console.log('✅ StoryWeaver AI Loaded with Voice Selector!');
+  console.log('💡 Click the voice selector in top-right corner to choose your preferred female voice!');
+</script>
+</body>
+</html>
