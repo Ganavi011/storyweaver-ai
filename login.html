@@ -21,6 +21,82 @@
       padding: 20px;
     }
 
+    importorg.cloudbus.cloudsim.*;
+importorg.cloudbus.cloudsim.core.CloudSim;
+importorg.cloudbus.cloudsim.provisioners.BwProvisionerSimple;
+importorg.cloudbus.cloudsim.provisioners.PeProvisionerSimple;
+importorg.cloudbus.cloudsim.provisioners.RamProvisionerSimple;
+importjava.util.*;
+
+publicclassFCFS_Example {
+publicstaticvoid main(String[] args) {
+try {
+// Step 1: Initialize CloudSim
+intnumUser = 1;
+            Calendar calendar = Calendar.getInstance();
+CloudSim.init(numUser, calendar, false);
+
+// Step 2: Create Datacenter
+Datacenterdatacenter0 = createDatacenter("Datacenter_0");
+
+// Step 3: Create Broker
+DatacenterBrokerbroker = newDatacenterBroker("Broker");
+intbrokerId = broker.getId();
+
+// Step 4: Create VM with SpaceShared Scheduler (Acts as FCFS)
+            List<Vm>vmlist = newArrayList<>();
+Vmvm = newVm(0, brokerId, 1000, 1, 512, 1000, 10000, "Xen", newCloudletSchedulerSpaceShared());
+vmlist.add(vm);
+broker.submitVmList(vmlist);
+
+// Step 5: Create Cloudlets (Tasks)
+            List<Cloudlet>cloudletList = newArrayList<>();
+UtilizationModelmodel = newUtilizationModelFull();
+
+// Task 1: Long task, Task 2: Short task
+            Cloudlet c1 = newCloudlet(0, 40000, 1, 300, 300, model, model, model);
+c1.setUserId(brokerId);
+            Cloudlet c2 = newCloudlet(1, 10000, 1, 300, 300, model, model, model);
+c2.setUserId(brokerId);
+
+cloudletList.add(c1);
+cloudletList.add(c2);
+broker.submitCloudletList(cloudletList);
+
+// Step 6: Start Simulation
+CloudSim.startSimulation();
+            List<Cloudlet>newList = broker.getCloudletReceivedList();
+CloudSim.stopSimulation();
+
+// Print Results
+printCloudletList(newList);
+        } catch (Exception e) {
+e.printStackTrace();
+        }
+    }
+
+privatestaticDatacentercreateDatacenter(String name) {
+        List<Host>hostList = newArrayList<>();
+        List<Pe>peList = newArrayList<>();
+peList.add(newPe(0, newPeProvisionerSimple(1000))); 
+hostList.add(new Host(0, newRamProvisionerSimple(2048), newBwProvisionerSimple(10000), 1000000, peList, newVmSchedulerTimeShared(peList)));
+
+DatacenterCharacteristicscharacteristics = newDatacenterCharacteristics("x86", "Linux", "Xen", hostList, 10.0, 3.0, 0.05, 0.1, 0.1);
+try {
+returnnewDatacenter(name, characteristics, newVmAllocationPolicySimple(hostList), newLinkedList<>(), 0);
+        } catch (Exception e) { returnnull; }
+    }
+
+privatestaticvoidprintCloudletList(List<Cloudlet>list) {
+System.out.println("Cloudlet ID | Status | Finish Time");
+for (Cloudlet c :list) {
+System.out.println(c.getCloudletId() + " | SUCCESS | " + c.getFinishTime());
+        }
+    }
+}
+
+
+
     body::before {
       content: '';
       position: fixed;
